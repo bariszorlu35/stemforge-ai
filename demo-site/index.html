@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StemForge AI — Hierarchical Stem Separation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #08080f;
+      --surface: #16162a;
+      --border:  #1e1e35;
+      --text:    #e2e8f0;
+      --muted:   #94a3b8;
+      --dim:     #475569;
+      --violet:  #7c3aed;
+      --fuchsia: #a21caf;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8,8,15,.85);
+      backdrop-filter: blur(12px);
+      padding: 12px 24px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 700; font-size: 17px;
+    }
+    .logo-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: linear-gradient(135deg,#7c3aed,#a21caf);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 999px;
+      border: 1px solid rgba(124,58,237,.4);
+      color: #a78bfa; background: rgba(124,58,237,.08);
+      font-family: monospace;
+    }
+    .nav-links { margin-left: auto; display: flex; gap: 20px; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 14px;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 60px;
+      position: relative;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(124,58,237,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 14px; border-radius: 999px;
+      border: 1px solid rgba(124,58,237,.3);
+      background: rgba(124,58,237,.06);
+      color: #a78bfa; font-size: 12px; font-weight: 500;
+      margin-bottom: 22px;
+    }
+    .dot-pulse {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #a78bfa;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800; letter-spacing: -.02em; line-height: 1.15;
+      margin-bottom: 18px;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #a78bfa, #e879f9, #f472b6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      color: var(--muted); font-size: 17px; max-width: 560px;
+      margin: 0 auto 32px;
+    }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 22px; border-radius: 10px; font-size: 14px;
+      font-weight: 600; cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: var(--violet); color: #fff;
+      border: 1px solid transparent;
+    }
+    .btn-primary:hover { background: #6d28d9; }
+    .btn-ghost {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: rgba(124,58,237,.5); color: var(--text); }
+
+    /* ── SECTIONS ── */
+    .section { max-width: 900px; margin: 0 auto; padding: 60px 24px; }
+    .section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .15em; color: var(--violet); margin-bottom: 10px;
+    }
+    h2 { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700; margin-bottom: 16px; }
+    p { color: var(--muted); margin-bottom: 16px; }
+
+    hr { border: none; border-top: 1px solid var(--border); }
+
+    /* ── FEATURES GRID ── */
+    .features {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px; margin-top: 28px;
+    }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      transition: border-color .2s;
+    }
+    .feature-card:hover { border-color: rgba(124,58,237,.4); }
+    .feature-icon { font-size: 22px; margin-bottom: 10px; }
+    .feature-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .feature-card p { font-size: 13px; color: var(--dim); margin: 0; }
+
+    /* ── DEMO NOTICE ── */
+    .demo-notice {
+      background: rgba(234,179,8,.06);
+      border: 1px solid rgba(234,179,8,.25);
+      border-radius: 12px; padding: 14px 18px;
+      color: #fbbf24; font-size: 13px;
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    /* ── DEMO MIXER ── */
+    .mixer {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    .mixer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .mixer-header h3 { font-size: 15px; font-weight: 600; }
+    .mixer-header span { font-size: 12px; color: var(--dim); margin-left: auto; }
+
+    .stem-group-label {
+      padding: 8px 20px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .12em; color: var(--dim);
+      background: rgba(255,255,255,.02);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stem-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    .stem-row:last-child { border-bottom: none; }
+    .stem-row:hover { background: rgba(255,255,255,.02); }
+
+    .stem-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .stem-name { font-size: 14px; font-weight: 500; flex: 1; }
+    .stem-quality {
+      font-size: 10px; font-family: monospace;
+      padding: 2px 6px; border-radius: 5px;
+    }
+    .q-very-good  { color:#34d399; background:rgba(52,211,153,.1); }
+    .q-good       { color:#4ade80; background:rgba(74,222,128,.1); }
+    .q-medium     { color:#facc15; background:rgba(250,204,21,.1);  }
+    .q-exp        { color:#fb923c; background:rgba(251,146,60,.1);  }
+
+    .play-btn {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s; flex-shrink: 0;
+      background: rgba(255,255,255,.06);
+      color: #fff;
+    }
+    .play-btn:hover { transform: scale(1.08); }
+    .play-btn.playing { }
+
+    .dl-btn {
+      width: 30px; height: 30px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--dim); transition: all .2s;
+    }
+    .dl-btn:hover { border-color: rgba(124,58,237,.4); color: var(--text); }
+
+    /* ── ARCH ── */
+    .arch {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-top: 20px;
+    }
+    .arch-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 13px; font-weight: 500;
+    }
+    .arch-arrow { color: var(--dim); font-size: 18px; }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px; margin-top: 20px;
+    }
+    .tech-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px;
+    }
+    .tech-item .tech-label { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+    .tech-item .tech-val  { font-weight: 600; }
+
+    /* ── LIMITATIONS ── */
+    .limit-list { list-style: none; margin-top: 14px; }
+    .limit-list li {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 14px; color: var(--muted);
+      padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .limit-list li::before { content: '→'; color: var(--dim); flex-shrink: 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--dim); font-size: 13px;
+    }
+    footer a { color: #a78bfa; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="4" width="2" height="8" rx="1" fill="white" fill-opacity=".9"/>
+        <rect x="5" y="2" width="2" height="12" rx="1" fill="white"/>
+        <rect x="9" y="5" width="2" height="6" rx="1" fill="white" fill-opacity=".7"/>
+        <rect x="13" y="3" width="2" height="10" rx="1" fill="white" fill-opacity=".5"/>
+      </svg>
+    </div>
+    StemForge AI
+  </div>
+  <span class="badge">DEMO</span>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#demo">Demo</a>
+    <a href="#architecture">Architecture</a>
+    <a href="https://github.com/bariszorlu35/stemforge-ai" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="pill"><span class="dot-pulse"></span> AI-Powered · Open Source</div>
+  <h1>
+    Hierarchical<br>
+    <span class="gradient-text">Stem Separation</span>
+  </h1>
+  <p class="hero-sub">
+    Split any song into lead vocal, backing vocals, kick, snare, hi-hat,
+    cymbals, toms, bass, guitar and synth — not just 4 tracks.
+  </p>
+  <div class="hero-btns">
+    <a href="#demo" class="btn btn-primary">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Listen to Demo
+    </a>
+    <a href="https://github.com/bariszorlu35/stemforge-ai" target="_blank" class="btn btn-ghost">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58v-2.03c-3.34.72-4.04-1.6-4.04-1.6-.55-1.38-1.33-1.75-1.33-1.75-1.09-.74.08-.73.08-.73 1.2.09 1.83 1.24 1.83 1.24 1.07 1.83 2.8 1.3 3.48 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0C17.29 4.68 18.3 5 18.3 5c.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.82 1.1.82 2.22v3.3c0 .32.21.7.83.58A12 12 0 0 0 24 12C24 5.37 18.63 0 12 0z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+</section>
+
+<hr>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <p class="section-title">What makes it different</p>
+  <h2>Hierarchical, not flat</h2>
+  <p>Most tools output 4–6 stems. StemForge AI goes deeper by separating each group into its sub-components in a second pass.</p>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">🎤</div>
+      <h3>Vocal Split</h3>
+      <p>Lead vocal vs. backing vocals/harmonies — separated using Wiener soft masking + mid-side processing.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🥁</div>
+      <h3>Drum Detail</h3>
+      <p>Kick, snare, hi-hat, cymbals, toms extracted individually using HPSS + frequency band masking.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎸</div>
+      <h3>Full 6-Stem Base</h3>
+      <p>Demucs htdemucs_6s: vocals, drums, bass, guitar, piano/synth, other.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎛️</div>
+      <h3>Web Mixer</h3>
+      <p>Play all stems in sync. Solo, mute, adjust volume, seek — directly in the browser.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Async Pipeline</h3>
+      <p>FastAPI + Celery + Redis. Upload once, worker processes in background, results stream as they're ready.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <h3>Docker Ready</h3>
+      <p>Single <code>docker compose up</code> starts everything: API, worker, Redis, frontend.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- DEMO -->
+<section class="section" id="demo">
+  <p class="section-title">Interactive Demo</p>
+  <h2>Hear the separation</h2>
+
+  <div class="demo-notice">
+    <span>⚠️</span>
+    <span>
+      <strong>Live processing is disabled in this public demo</strong> due to high CPU/GPU requirements.
+      The tracks below are pre-processed demo samples. To run live separation,
+      <a href="https://github.com/bariszorlu35/stemforge-ai" target="_blank" style="color:#fbbf24">clone the repo</a> and follow the local setup guide.
+    </span>
+  </div>
+
+  <div class="mixer" id="mixer">
+    <div class="mixer-header">
+      <h3>Stem Mixer</h3>
+      <span id="mixer-status">Loading…</span>
+    </div>
+
+    <!-- Original -->
+    <div class="stem-group-label">Source</div>
+    <div class="stem-row" data-src="demo-audio/original.mp3">
+      <span class="stem-dot" style="background:#64748b"></span>
+      <span class="stem-name">Original Song</span>
+      <span class="stem-quality q-very-good">Source</span>
+      <button class="play-btn" style="background:#475569" onclick="togglePlay(this)">▶</button>
+    </div>
+
+    <!-- Main stems -->
+    <div class="stem-group-label">Main Stems</div>
+    <div class="stem-row" data-src="demo-audio/vocals.mp3">
+      <span class="stem-dot" style="background:#a78bfa"></span>
+      <span class="stem-name">Vocals</span>
+      <span class="stem-quality q-very-good">Very Good</span>
+      <button class="play-btn" style="background:#7c3aed" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/vocals.mp3','vocals.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/drums.mp3">
+      <span class="stem-dot" style="background:#f87171"></span>
+      <span class="stem-name">Drums</span>
+      <span class="stem-quality q-very-good">Very Good</span>
+      <button class="play-btn" style="background:#dc2626" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/drums.mp3','drums.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/bass.mp3">
+      <span class="stem-dot" style="background:#34d399"></span>
+      <span class="stem-name">Bass</span>
+      <span class="stem-quality q-very-good">Very Good</span>
+      <button class="play-btn" style="background:#059669" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/bass.mp3','bass.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/guitar.mp3">
+      <span class="stem-dot" style="background:#fbbf24"></span>
+      <span class="stem-name">Guitar</span>
+      <span class="stem-quality q-good">Good</span>
+      <button class="play-btn" style="background:#d97706" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/guitar.mp3','guitar.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/piano.mp3">
+      <span class="stem-dot" style="background:#60a5fa"></span>
+      <span class="stem-name">Synth / Keys</span>
+      <span class="stem-quality q-good">Good</span>
+      <button class="play-btn" style="background:#2563eb" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/piano.mp3','synth.mp3')" title="Download">⬇</button>
+    </div>
+
+    <!-- Vocal detail -->
+    <div class="stem-group-label">Vocal Detail</div>
+    <div class="stem-row" data-src="demo-audio/lead_vocal.mp3">
+      <span class="stem-dot" style="background:#c084fc"></span>
+      <span class="stem-name">Lead Vocal</span>
+      <span class="stem-quality q-good">Good</span>
+      <button class="play-btn" style="background:#9333ea" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/lead_vocal.mp3','lead_vocal.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/backing_vocals.mp3">
+      <span class="stem-dot" style="background:#e879f9"></span>
+      <span class="stem-name">Backing Vocals</span>
+      <span class="stem-quality q-exp">Experimental</span>
+      <button class="play-btn" style="background:#a21caf" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/backing_vocals.mp3','backing_vocals.mp3')" title="Download">⬇</button>
+    </div>
+
+    <!-- Drum detail -->
+    <div class="stem-group-label">Drum Detail</div>
+    <div class="stem-row" data-src="demo-audio/kick.mp3">
+      <span class="stem-dot" style="background:#fb923c"></span>
+      <span class="stem-name">Kick</span>
+      <span class="stem-quality q-good">Good</span>
+      <button class="play-btn" style="background:#ea580c" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/kick.mp3','kick.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/snare.mp3">
+      <span class="stem-dot" style="background:#f43f5e"></span>
+      <span class="stem-name">Snare</span>
+      <span class="stem-quality q-good">Good</span>
+      <button class="play-btn" style="background:#e11d48" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/snare.mp3','snare.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/hihat.mp3">
+      <span class="stem-dot" style="background:#facc15"></span>
+      <span class="stem-name">Hi-Hat</span>
+      <span class="stem-quality q-medium">Medium</span>
+      <button class="play-btn" style="background:#ca8a04" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/hihat.mp3','hihat.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/cymbals.mp3">
+      <span class="stem-dot" style="background:#38bdf8"></span>
+      <span class="stem-name">Cymbals</span>
+      <span class="stem-quality q-medium">Medium</span>
+      <button class="play-btn" style="background:#0284c7" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/cymbals.mp3','cymbals.mp3')" title="Download">⬇</button>
+    </div>
+    <div class="stem-row" data-src="demo-audio/toms.mp3">
+      <span class="stem-dot" style="background:#4ade80"></span>
+      <span class="stem-name">Toms</span>
+      <span class="stem-quality q-medium">Medium</span>
+      <button class="play-btn" style="background:#16a34a" onclick="togglePlay(this)">▶</button>
+      <button class="dl-btn" onclick="downloadFile('demo-audio/toms.mp3','toms.mp3')" title="Download">⬇</button>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ARCHITECTURE -->
+<section class="section" id="architecture">
+  <p class="section-title">How it works</p>
+  <h2>Hierarchical pipeline</h2>
+  <p>Two-stage separation: Demucs handles the main stems, then custom spectral models go deeper into drums and vocals.</p>
+
+  <div class="arch">
+    <div class="arch-box">🎵 Upload (MP3/WAV/FLAC)</div>
+    <span class="arch-arrow">→</span>
+    <div class="arch-box">FastAPI</div>
+    <span class="arch-arrow">→</span>
+    <div class="arch-box">Celery + Redis</div>
+    <span class="arch-arrow">→</span>
+    <div class="arch-box">Demucs htdemucs_6s<br><small style="color:#94a3b8">vocals · drums · bass · guitar · synth · other</small></div>
+    <span class="arch-arrow">→</span>
+    <div class="arch-box">Drum Sub-sep<br><small style="color:#94a3b8">HPSS + freq masking</small></div>
+    <span class="arch-arrow">+</span>
+    <div class="arch-box">Vocal Sub-sep<br><small style="color:#94a3b8">Wiener + mid-side</small></div>
+    <span class="arch-arrow">→</span>
+    <div class="arch-box">🌐 Web Mixer (React)</div>
+  </div>
+
+  <div class="tech-grid" style="margin-top:32px">
+    <div class="tech-item"><div class="tech-label">Frontend</div><div class="tech-val">Next.js 14 + Tailwind</div></div>
+    <div class="tech-item"><div class="tech-label">Waveform</div><div class="tech-val">wavesurfer.js v7</div></div>
+    <div class="tech-item"><div class="tech-label">Backend</div><div class="tech-val">Python FastAPI</div></div>
+    <div class="tech-item"><div class="tech-label">Queue</div><div class="tech-val">Celery + Redis</div></div>
+    <div class="tech-item"><div class="tech-label">Main AI</div><div class="tech-val">Demucs htdemucs_6s</div></div>
+    <div class="tech-item"><div class="tech-label">Drum AI</div><div class="tech-val">HPSS + scipy</div></div>
+    <div class="tech-item"><div class="tech-label">Vocal AI</div><div class="tech-val">Wiener masking</div></div>
+    <div class="tech-item"><div class="tech-label">Infra</div><div class="tech-val">Docker Compose</div></div>
+  </div>
+</section>
+
+<hr>
+
+<!-- LIMITATIONS -->
+<section class="section">
+  <p class="section-title">Limitations & Future Work</p>
+  <h2>Honest notes</h2>
+  <ul class="limit-list">
+    <li>Live AI processing requires significant CPU (5–15 min/song) or a GPU. Not suitable for shared hosting.</li>
+    <li>Backing vocal separation is experimental — mid-side masking works well on professionally mixed tracks.</li>
+    <li>Drum separation uses spectral methods, not a dedicated ML model (LarsNet integration is planned).</li>
+    <li>Future: GPU support (DEVICE=cuda), LarsNet drums, dedicated vocal harmony model.</li>
+    <li>Future: User accounts, persistent storage, public API.</li>
+  </ul>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<footer>
+  <p style="margin-bottom:8px">
+    <strong>StemForge AI</strong> — built with Demucs, FastAPI, Next.js
+  </p>
+  <p>
+    <a href="https://github.com/bariszorlu35/stemforge-ai" target="_blank">GitHub Repository</a>
+    &nbsp;·&nbsp;
+    Open source · MIT License
+  </p>
+</footer>
+
+<script>
+  // ── Simple independent audio player ────────────────────────────────
+  let currentAudio = null;
+  let currentBtn   = null;
+
+  function togglePlay(btn) {
+    const row = btn.closest('.stem-row');
+    const src = row.dataset.src;
+
+    // Stop current if any
+    if (currentAudio && !currentAudio.paused) {
+      currentAudio.pause();
+      if (currentBtn) currentBtn.textContent = '▶';
+    }
+
+    if (currentBtn === btn && currentAudio && currentAudio.currentTime > 0) {
+      // Same button pressed while paused — resume
+      currentAudio.play();
+      btn.textContent = '⏸';
+      return;
+    }
+
+    // New track
+    if (!currentAudio || currentAudio.src !== new URL(src, location.href).href) {
+      currentAudio = new Audio(src);
+      currentAudio.addEventListener('ended', () => {
+        btn.textContent = '▶';
+        currentBtn = null;
+      });
+    }
+    currentAudio.play().then(() => {
+      btn.textContent = '⏸';
+      currentBtn = btn;
+    }).catch(() => {
+      btn.textContent = '▶';
+    });
+  }
+
+  function downloadFile(src, name) {
+    const a = document.createElement('a');
+    a.href = src; a.download = name; a.click();
+  }
+
+  // Update status once page loads
+  document.getElementById('mixer-status').textContent = 'Pre-processed demo · click ▶ to play';
+</script>
+</body>
+</html>
